@@ -1,0 +1,51 @@
+# Python-specific
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+ENV/
+
+# IDE settings
+.idea/
+.vscode/
+
+# Byte-compiled files
+*.pyc
+
+# Logs
+*.log
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Test reports
+.coverage
+*.cover
+
+# Environment variables
+.env
+.env.*
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+*.manifest
+*.spec
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# SQLite database
+*.sqlite3
+*.db
+
+# Miscellaneous
+*.bak
+*.swp
+*.tmp
