@@ -1,16 +1,16 @@
 """
-base.py (v2) — BaseAgent using GitHub Models API (GPT-4o via OpenAI SDK).
+base.py (v2.1) — BaseAgent using GitHub Models API (GPT-4o via OpenAI SDK)
 
-Key differences from v1 (Anthropic):
-- Uses openai.OpenAI client pointed at GitHub Models endpoint
-- _gpt_text() replaces _claude_text()
-- _call_with_search() replaces passing tools=[web_search] to Anthropic
-  It runs the full agentic loop: call → check tool_calls → run DDGS → call again
+Changes from v2:
+- Enhanced _retry_api_call() with rate limit detection (429 errors)
+- Added 60-second wait for rate limits vs exponential backoff for other errors
+- Improved error logging with more context
 """
 from abc import ABC, abstractmethod
 from typing import TypedDict, List
 import logging
 import json
+import time
 
 class AgentInput(TypedDict):
     job_id: str
@@ -42,16 +42,47 @@ class BaseAgent(ABC):
         pass
 
     def _retry_api_call(self, fn, *args, max_retries=3, **kwargs):
-        """Exponential backoff wrapper. Same as v1."""
-        import time
+        """
+        Exponential backoff wrapper with rate limit handling.
+        
+        Handles two types of errors differently:
+        - Rate limits (429): Wait 60 seconds before retry
+        - Other errors: Exponential backoff (2^attempt seconds)
+        
+        Args:
+            fn: Function to call
+            max_retries: Maximum number of retry attempts (default: 3)
+            
+        Returns:
+            The result of fn(*args, **kwargs)
+            
+        Raises:
+            Exception: If all retries exhausted
+        """
         for attempt in range(max_retries):
             try:
                 return fn(*args, **kwargs)
             except Exception as e:
+                # Check if it's a rate limit error (429)
+                is_rate_limit = False
+                if hasattr(e, 'status_code') and e.status_code == 429:
+                    is_rate_limit = True
+                    wait = 60  # Wait 60s for rate limit
+                elif 'rate_limit' in str(e).lower() or '429' in str(e):
+                    is_rate_limit = True
+                    wait = 60
+                else:
+                    wait = 2 ** attempt  # Exponential backoff for other errors
+                
                 if attempt == max_retries - 1:
+                    self.logger.error(f"All {max_retries} retry attempts failed: {e}")
                     raise
-                wait = 2 ** attempt
-                self.logger.warning(f"Attempt {attempt+1} failed: {e}. Retrying in {wait}s")
+                
+                error_type = "Rate limit" if is_rate_limit else "API error"
+                self.logger.warning(
+                    f"{error_type} on attempt {attempt+1}/{max_retries}: {e}. "
+                    f"Retrying in {wait}s..."
+                )
                 time.sleep(wait)
 
     def _gpt_text(self, response) -> str:
@@ -127,7 +158,7 @@ class BaseAgent(ABC):
 
             for tc in tool_calls:
                 args = json.loads(tc.function.arguments)
-                self.logger.info(f"Search: {args.get('query', '')}")
+                self.logger.info(f"Search round {round_num+1}: {args.get('query', '')}")
                 result_text = run_tool_call(tc.function.name, args)
                 messages.append({
                     "role": "tool",

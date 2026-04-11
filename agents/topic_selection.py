@@ -1,3 +1,12 @@
+"""
+topic_selection.py — Enhanced with robust JSON parsing and validation
+
+Changes from original:
+- Added JSON structure validation
+- Returns status="needs_retry" on parse failures (not "failed")
+- Validates required fields exist in each topic
+- Better error messages for debugging
+"""
 import json
 from agents.base import BaseAgent, AgentInput, AgentOutput
 
@@ -47,11 +56,64 @@ Respond ONLY with a JSON array. No preamble, no markdown fences. Each object mus
             if start != -1 and end > start:
                 raw = raw[start:end]
 
-            topics = json.loads(raw)
-
-            return AgentOutput(job_id=input['job_id'], status="needs_human",
-                               payload={"topics": topics}, error=None)
+            # Parse and validate JSON
+            try:
+                topics = json.loads(raw)
+            except json.JSONDecodeError as e:
+                self.logger.warning(f"JSON parsing failed (attempt will retry): {e}")
+                self.logger.debug(f"Raw response: {raw[:500]}")
+                return AgentOutput(
+                    job_id=input['job_id'], 
+                    status="needs_retry",
+                    payload={"raw_response": raw[:1000]}, 
+                    error=f"JSON parse error: {e}"
+                )
+            
+            # Validate structure
+            if not isinstance(topics, list):
+                self.logger.warning(f"Expected array, got {type(topics).__name__}")
+                return AgentOutput(
+                    job_id=input['job_id'],
+                    status="needs_retry",
+                    payload={"raw_response": raw[:1000]},
+                    error="Response is not a JSON array"
+                )
+            
+            if len(topics) == 0:
+                self.logger.warning("Empty topic list returned")
+                return AgentOutput(
+                    job_id=input['job_id'],
+                    status="needs_retry",
+                    payload={},
+                    error="No topics generated"
+                )
+            
+            # Validate each topic has required fields
+            required_fields = ["title", "rationale", "target_audience", "estimated_price_inr"]
+            for i, t in enumerate(topics):
+                missing = [f for f in required_fields if f not in t]
+                if missing:
+                    self.logger.warning(f"Topic {i} missing fields: {missing}")
+                    return AgentOutput(
+                        job_id=input['job_id'],
+                        status="needs_retry",
+                        payload={"partial_topics": topics},
+                        error=f"Topic {i} missing required fields: {missing}"
+                    )
+            
+            self.logger.info(f"Successfully generated {len(topics)} topics")
+            return AgentOutput(
+                job_id=input['job_id'], 
+                status="needs_human",
+                payload={"topics": topics}, 
+                error=None
+            )
 
         except Exception as e:
             self.logger.error(f"TopicSelectionAgent failed: {e}", exc_info=True)
-            return AgentOutput(job_id=input['job_id'], status="failed", payload={}, error=str(e))
+            return AgentOutput(
+                job_id=input['job_id'], 
+                status="failed", 
+                payload={}, 
+                error=str(e)
+            )
