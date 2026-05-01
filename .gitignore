@@ -28,7 +28,6 @@ Thumbs.db
 
 # Environment variables
 .env
-.env.*
 
 # Build artifacts
 build/

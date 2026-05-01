@@ -73,12 +73,14 @@ class DesignAgent(BaseAgent):
             env = Environment(loader=FileSystemLoader(template_dir))
             template = env.get_template('report.html')
 
-            # Render template with content
+            from datetime import datetime
+            # Render with variable names matching the template (title, audience, body, date)
             rendered_html = template.render(
-                report_title=report_title,
-                content=html_content,
-                target_audience=target_audience,
-                price_inr=price_inr
+                title=report_title,
+                body=html_content,
+                audience=target_audience,
+                price_inr=price_inr,
+                date=datetime.utcnow().strftime('%B %Y'),
             )
 
             # Generate PDF

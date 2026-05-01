@@ -2,7 +2,7 @@ from agents.base import BaseAgent, AgentInput, AgentOutput
 
 class EditingAgent(BaseAgent):
     def run(self, input: AgentInput) -> AgentOutput:
-        """Improve draft for clarity, tone, and structure. Uses GPT-4o (no search needed)."""
+        """Improve draft for clarity, tone, and structure. Uses Claude Sonnet (no search needed)."""
         self.logger.info(f"Starting EditingAgent for job {input['job_id']}")
 
         try:
@@ -25,8 +25,10 @@ EDITING RULES:
 REPORT TO EDIT:
 {report_markdown}"""
 
-            # Full model for editing — quality matters here
-            edited_markdown = self._call_simple(prompt, max_tokens=7000)
+            # Full model for editing — quality matters here.
+            # max_tokens reduced 7000→5000: observed output is ~5000 tokens max
+            # (editing cannot produce content longer than the original report).
+            edited_markdown = self._call_simple(prompt, max_tokens=5000)
 
             # Sanity check: edited version should be ≥80% length of original
             if len(edited_markdown) < len(report_markdown) * 0.8:

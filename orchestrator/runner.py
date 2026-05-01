@@ -151,25 +151,36 @@ class Orchestrator:
         # If operator approved a specific topic from Gate 1, store it
         if approved_topic:
             job.approved_topic = approved_topic
+
+        # Determine which agent is paused
+        paused_agent = None
+        if job.status.startswith("paused_"):
+            paused_agent = job.status.replace("paused_", "")
+        
+        # Special case: If paused at PublishingAgent (Gate 3), publish the product live
+        if paused_agent == "PublishingAgent":
+            runs = self._runs(job)
+            if "PublishingAgent" in runs:
+                pub_payload = _load(runs["PublishingAgent"])
+                product_id = pub_payload.get("gumroad_product_id")
+                if product_id:
+                    print(f"Publishing Gumroad product {product_id}...")
+                    try:
+                        self.agents["PublishingAgent"].publish(product_id)
+                    except Exception as e:
+                        print(f"Warning: publish call failed: {e}")
+        
+        # Mark the paused agent as success so pipeline can progress
+        if paused_agent:
+            runs = self._runs(job)
+            if paused_agent in runs:
+                agent_run = runs[paused_agent]
+                agent_run.status = "success"
+                agent_run.save()
+        
         job.status = "running"
         job.updated_at = datetime.datetime.now()
         job.save()
-
-        # Special case: Gate 3 — publish the Gumroad product before continuing
-        runs = self._runs(job)
-        if "PublishingAgent" in runs and runs["PublishingAgent"].status == "needs_human":
-            pub_payload = _load(runs["PublishingAgent"])
-            product_id = pub_payload.get("gumroad_product_id")
-            if product_id:
-                print(f"Publishing Gumroad product {product_id}...")
-                try:
-                    self.agents["PublishingAgent"].publish(product_id)
-                except Exception as e:
-                    print(f"Warning: publish call failed: {e}")
-            # Mark PublishingAgent as success so pipeline continues to MarketingAgent
-            pub_run = runs["PublishingAgent"]
-            pub_run.status = "success"
-            pub_run.save()
 
         self._run(job)
 

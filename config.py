@@ -14,9 +14,9 @@ class ConfigError(Exception):
 class Config:
     def __init__(self):
         """Initialize configuration and validate all required environment variables."""
-        self.GITHUB_TOKEN = self._get_required(
-            "GITHUB_TOKEN",
-            "GitHub personal access token from github.com/settings/tokens"
+        self.ANTHROPIC_API_KEY = self._get_required(
+            "ANTHROPIC_API_KEY",
+            "Anthropic API key from console.anthropic.com/settings/keys"
         )
         self.GUMROAD_ACCESS_TOKEN = self._get_required(
             "GUMROAD_ACCESS_TOKEN",

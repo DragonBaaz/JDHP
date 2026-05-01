@@ -3,101 +3,167 @@
 <head>
 <meta charset="UTF-8">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  /* ── Font stack: system fonts only — no Google Fonts CDN call at render time.
+     WeasyPrint would silently fall back anyway if the network request failed.
+     Windows: Calibri → Arial | Linux server: Liberation Sans → DejaVu Sans
+     macOS: Helvetica Neue → Arial
+     Run: apt-get install -y fonts-liberation  (on Linux deployment servers) ── */
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    font-family: Calibri, 'Liberation Sans', 'DejaVu Sans', Arial, 'Helvetica Neue', sans-serif;
     font-size: 11pt;
-    line-height: 1.7;
+    line-height: 1.75;
     color: #2d2d2d;
   }
 
-  /* ── Cover page ── */
+  /* ── Cover page ─────────────────────────────────────────────────────────────
+     Fixed from 100vh (broken in WeasyPrint) to explicit A4 usable height.
+     A4 = 297mm. @page margins: top 20mm + bottom 22mm = 42mm removed.
+     Usable content height = 255mm.
+     CSS Grid replaces flex so the footer is pushed to the bottom row without
+     position:absolute (which floated off-page in PDF context). ── */
   .cover {
     page-break-after: always;
-    height: 100vh;
+    min-height: 255mm;
     background: #1a2744;
     color: white;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 60px 70px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 0 22mm 14mm 22mm;
+    position: relative;
   }
+
+  /* Gold accent bar across the top of the cover */
+  .cover-accent {
+    height: 5px;
+    background: linear-gradient(90deg, #f0b429 0%, #c97a00 100%);
+    margin-bottom: 28mm;
+    border-radius: 0 0 2px 2px;
+  }
+
+  /* Middle content block */
+  .cover-main {
+    align-self: center;
+  }
+
   .cover .label {
-    font-size: 9pt;
-    letter-spacing: 3px;
+    font-size: 8.5pt;
+    letter-spacing: 4px;
     text-transform: uppercase;
-    color: #8fa8d0;
-    margin-bottom: 30px;
+    color: #7a9cc8;
+    margin-bottom: 18px;
+    font-weight: 600;
   }
+
   .cover h1 {
-    font-size: 26pt;
+    font-size: 24pt;
     font-weight: 700;
-    line-height: 1.25;
-    margin-bottom: 30px;
+    line-height: 1.2;
+    margin-bottom: 22px;
+    letter-spacing: -0.2px;
+    color: #ffffff;
   }
+
   .cover .meta {
     font-size: 10pt;
-    color: #a0b8d8;
-    margin-top: 10px;
+    color: #9ab4d4;
+    margin-top: 7px;
+    line-height: 1.5;
   }
+
+  /* Price badge: outlined style instead of filled — more premium look */
   .cover .price-badge {
     display: inline-block;
-    margin-top: 40px;
-    background: #2e4a80;
-    padding: 8px 18px;
-    border-radius: 4px;
+    margin-top: 28px;
+    border: 1.5px solid #f0b429;
+    color: #f0b429;
+    padding: 6px 16px;
+    border-radius: 3px;
     font-size: 10pt;
+    font-weight: 600;
+    letter-spacing: 0.5px;
   }
+
+  /* Footer row — sits in the last grid row, no absolute positioning needed */
   .cover .footer-cover {
-    position: absolute;
-    bottom: 40px;
-    left: 70px;
     font-size: 8pt;
-    color: #5a7aa8;
+    color: #4a6898;
+    padding-top: 12px;
+    border-top: 1px solid #253a62;
   }
 
-  /* ── Body pages ── */
+  /* ── Body pages ─────────────────────────────────────────────────────────── */
   .content {
-    padding: 50px 70px;
+    padding: 10mm 0;   /* @page margins already provide left/right padding */
   }
 
+  /* Headings — keep with their following content; never orphan a heading */
   h1, h2, h3, h4 {
     color: #1a2744;
     margin-top: 28px;
     margin-bottom: 10px;
-    font-weight: 600;
+    font-weight: 700;
+    page-break-after: avoid;
+    page-break-inside: avoid;
   }
-  h2 { font-size: 15pt; border-bottom: 2px solid #e0e8f5; padding-bottom: 6px; }
-  h3 { font-size: 12pt; }
+
+  /* Section heading with left accent bar — matches blockquote style */
+  h2 {
+    font-size: 14pt;
+    border-bottom: 2px solid #dde8f8;
+    border-left: 4px solid #2e4a80;
+    padding-bottom: 6px;
+    padding-left: 10px;
+    margin-top: 32px;
+  }
+
+  h3 { font-size: 11.5pt; color: #2e4a80; margin-top: 22px; }
+  h4 { font-size: 11pt; }
 
   p { margin-bottom: 12px; }
 
+  /* Orphan + widow control: keep at least 3 lines together at page breaks */
+  p, li { orphans: 3; widows: 3; }
+
   a { color: #2e4a80; text-decoration: none; }
 
+  /* ── Tables ────────────────────────────────────────────────────────────────
+     Fixed from border-bottom only → full cell borders (column separators visible).
+     word-break prevents long strings (URLs, codes) from overflowing cells.
+     page-break-inside: avoid keeps tables intact across pages. ── */
   table {
     width: 100%;
     border-collapse: collapse;
     margin: 18px 0;
     font-size: 10pt;
+    page-break-inside: avoid;
   }
+
   th {
     background: #1a2744;
     color: white;
-    padding: 8px 12px;
+    padding: 9px 12px;
     text-align: left;
+    font-weight: 600;
+    border: 1px solid #0d1728;
+    word-break: break-word;
   }
+
   td {
-    padding: 7px 12px;
-    border-bottom: 1px solid #e0e8f5;
+    padding: 8px 12px;
+    border: 1px solid #dde6f5;   /* full cell borders — was only border-bottom */
+    word-break: break-word;
   }
-  tr:nth-child(even) td { background: #f5f8ff; }
 
-  ul, ol { margin: 10px 0 14px 24px; }
-  li { margin-bottom: 5px; }
+  tr:nth-child(even) td { background: #f7f9ff; }
 
+  /* ── Lists ── */
+  ul, ol { margin: 10px 0 14px 26px; }
+  li { margin-bottom: 6px; }
+
+  /* ── Blockquotes ── */
   blockquote {
     border-left: 4px solid #2e4a80;
     margin: 16px 0;
@@ -105,47 +171,57 @@
     background: #f5f8ff;
     color: #3a4a6a;
     font-style: italic;
+    page-break-inside: avoid;
   }
 
+  /* ── Code ── */
   code, pre {
-    font-family: 'Courier New', monospace;
+    font-family: 'Courier New', 'Lucida Console', monospace;
     background: #f0f4fb;
     padding: 2px 5px;
     border-radius: 3px;
     font-size: 9.5pt;
+    page-break-inside: avoid;
   }
 
-  /* ── Page numbers ── */
+  /* ── Page footer with report title string ── */
   @page {
     size: A4;
     margin: 20mm 18mm 22mm 18mm;
     @bottom-center {
       content: "© JDHP  ·  " string(report-title) "  ·  Page " counter(page);
-      font-size: 8pt;
-      color: #888;
+      font-size: 7.5pt;
+      color: #999;
     }
   }
   @page :first { @bottom-center { content: ""; } }
 
+  /* Hidden span so WeasyPrint captures the title for the footer string */
   .report-title { string-set: report-title content(); display: none; }
+
 </style>
 </head>
 <body>
 
-<!-- Hidden element for page-footer string -->
+<!-- Captured for page footer -->
 <span class="report-title">{{ title }}</span>
 
-<!-- Cover page -->
+<!-- ── Cover page ── -->
 <div class="cover">
-  <div class="label">JDHP Research Report</div>
-  <h1>{{ title }}</h1>
-  <div class="meta">Published: {{ date }}</div>
-  <div class="meta">Prepared for: {{ audience }}</div>
-  <div class="price-badge">₹{{ price_inr }}</div>
+  <div class="cover-accent"></div>
+
+  <div class="cover-main">
+    <div class="label">JDHP Research Report</div>
+    <h1>{{ title }}</h1>
+    <div class="meta">Published: {{ date }}</div>
+    <div class="meta">Prepared for: {{ audience }}</div>
+    <div class="price-badge">₹{{ price_inr }}</div>
+  </div>
+
   <div class="footer-cover">© JDHP Agentic Publishing House · jdhp.in</div>
 </div>
 
-<!-- Report body -->
+<!-- ── Report body ── -->
 <div class="content">
   {{ body }}
 </div>
